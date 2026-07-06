@@ -55,7 +55,7 @@ spec:
         - name: ghcr-secret
       containers:
         - name: app
-          image: ghcr.io/marcioecom/ai-agent:latest
+          image: ghcr.io/marcioecom/clearfy:latest
           imagePullPolicy: Always
           ports:
             - name: http
