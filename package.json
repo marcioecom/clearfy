@@ -1,0 +1,23 @@
+{
+  "name": "ai-agent",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file .env --experimental-strip-types --watch main.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.11.0",
+  "dependencies": {
+    "@langchain/openai": "^1.5.3",
+    "langchain": "^1.5.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "tsx": "^4.22.5"
+  }
+}
