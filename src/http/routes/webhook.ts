@@ -30,6 +30,11 @@ export const webhook: FastifyPluginAsyncZod = async (app) => {
     async (request, reply) => {
       const { WaId, ProfileName, Body } = request.body;
 
+      request.log.info(
+        { waId: WaId, name: ProfileName },
+        "processing webhook event",
+      );
+
       const agent = await getAgent();
 
       const res = await agent.invoke(

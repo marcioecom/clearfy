@@ -9,7 +9,9 @@ import {
 import { env } from "@/config";
 import { webhook } from "./routes/webhook";
 
-const app = fastify().withTypeProvider<ZodTypeProvider>();
+const app = fastify({
+  logger: true,
+}).withTypeProvider<ZodTypeProvider>();
 
 app.register(fastifyCors, {
   origin: true,
