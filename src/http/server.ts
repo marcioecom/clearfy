@@ -23,12 +23,10 @@ app.register(fastifyFormbody);
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);
 
-app.get("/health", async () => ({ ok: true }));
+app.get("/health", { logLevel: "silent" }, async () => ({ ok: true }));
 
 app.register(webhook);
 
 app.setErrorHandler(errorHandler);
 
-app.listen({ port: env.PORT, host: "0.0.0.0" }).then(() => {
-  console.log(`HTTP server running on http://localhost:${env.PORT}!`);
-});
+app.listen({ port: env.PORT, host: "0.0.0.0" });
