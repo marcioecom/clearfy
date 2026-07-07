@@ -1,6 +1,8 @@
-import { messager } from "@/lib/twilio";
-import { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
 import { z } from "zod";
+import { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
+import { messager } from "@/lib/twilio";
+import { getAgent } from "@/agent";
+import { HumanMessage } from "langchain";
 
 const bodySchema = z.object({
   WaId: z.string().describe("User WhatsApp ID to reply to"),
@@ -26,11 +28,21 @@ export const webhook: FastifyPluginAsyncZod = async (app) => {
       schema: { body: bodySchema },
     },
     async (request, reply) => {
-      const { WaId, ProfileName } = request.body;
+      const { WaId, ProfileName, Body } = request.body;
+
+      const agent = await getAgent();
+
+      const res = await agent.invoke(
+        {
+          messages: [new HumanMessage(Body)],
+        },
+        { configurable: { thread_id: WaId } },
+      );
+      const answer = res.messages.at(-1)?.content;
 
       await messager.sendMessage({
         toNumber: WaId,
-        body: `Hello, ${ProfileName}`,
+        body: `${answer}`,
       });
 
       reply.send({ hello: "world" });
