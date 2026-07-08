@@ -8,7 +8,6 @@ import {
 } from "@fastify/type-provider-zod";
 import { env } from "@/config";
 import { webhook } from "./routes/webhook";
-import { errorHandler } from "./error-handler";
 
 const app = fastify({
   logger: true,
@@ -26,7 +25,5 @@ app.setSerializerCompiler(serializerCompiler);
 app.get("/health", { logLevel: "silent" }, async () => ({ ok: true }));
 
 app.register(webhook);
-
-app.setErrorHandler(errorHandler);
 
 app.listen({ port: env.PORT, host: "0.0.0.0" });
