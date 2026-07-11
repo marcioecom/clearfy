@@ -1,4 +1,4 @@
-import { getAgent } from "@/agent";
+import { getAgent } from "@/ai/agent";
 import { transcribeAudio } from "@/helpers/transcribe";
 import { messager } from "@/lib/twilio";
 import { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
