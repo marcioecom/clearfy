@@ -3,6 +3,7 @@ import { MemorySaver } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
 import { createAgent, ReactAgent } from "langchain";
 import { mcpClient } from "./tools/mcp";
+import { searchWeb } from "./tools/search";
 
 const model = new ChatOpenAI({
   apiKey: env.AI_GATEWAY_API_KEY,
@@ -25,7 +26,7 @@ export async function getAgent() {
   agent = createAgent({
     model,
     checkpointer,
-    tools: [...mcpTools],
+    tools: [searchWeb, ...mcpTools],
     systemPrompt: SYSTEM_PROMPT,
   });
   return agent;

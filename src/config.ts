@@ -9,6 +9,7 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string(),
   TWILIO_AUTH_TOKEN: z.string(),
   TWILIO_NUMBER: z.string(),
+  TAVILY_API_KEY: z.string(),
 });
 
 export const env = envSchema.parse(process.env);
