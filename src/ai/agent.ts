@@ -3,8 +3,6 @@ import { ChatOpenAI } from "@langchain/openai";
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres/store";
 import { createAgent, ReactAgent } from "langchain";
-import { mcpClient } from "./tools/mcp";
-import { searchWeb } from "./tools/search";
 
 const model = new ChatOpenAI({
   apiKey: env.AI_GATEWAY_API_KEY,
@@ -21,8 +19,6 @@ let agent: ReactAgent | null = null;
 export async function getAgent() {
   if (agent) return agent;
 
-  const mcpTools = await mcpClient.getTools();
-
   const store = PostgresStore.fromConnString(env.DATABASE_URL);
   await store.setup();
 
@@ -33,7 +29,7 @@ export async function getAgent() {
     model,
     store,
     checkpointer,
-    tools: [searchWeb, ...mcpTools],
+    tools: [],
     systemPrompt: SYSTEM_PROMPT,
   });
   return agent;
