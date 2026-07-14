@@ -18,6 +18,7 @@ export default defineConfig({
     environment: "node",
     clearMocks: true,
     passWithNoTests: false,
+    globalSetup: ["./vitest.integration.global.ts"],
     include: ["**/*.integration.test.ts"],
     exclude: configDefaults.exclude,
     fileParallelism: false,
