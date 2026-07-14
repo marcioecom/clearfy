@@ -1,6 +1,6 @@
 import "dotenv/config";
-import base from "./vitest.config";
-import { mergeConfig, defineConfig } from "vitest/config";
+import { fileURLToPath } from "node:url";
+import { configDefaults, defineConfig } from "vitest/config";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 if (!testDatabaseUrl) throw new Error("TEST_DATABASE_URL is required");
@@ -10,13 +10,17 @@ if (!/[-_]test$/.test(databaseName)) {
 }
 process.env.DATABASE_URL = testDatabaseUrl;
 
-export default mergeConfig(
-  base,
-  defineConfig({
-    test: {
-      include: ["**/*.integration.test.ts"],
-      fileParallelism: false,
-      globalTeardown: ["./vitest.integration.teardown.ts"],
-    },
-  }),
-);
+export default defineConfig({
+  resolve: {
+    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+  },
+  test: {
+    environment: "node",
+    clearMocks: true,
+    passWithNoTests: false,
+    include: ["**/*.integration.test.ts"],
+    exclude: configDefaults.exclude,
+    fileParallelism: false,
+    globalTeardown: ["./vitest.integration.teardown.ts"],
+  },
+});
