@@ -384,8 +384,6 @@ git commit -m "feat: add drizzle commercial catalog schema"
 
 **Files:**
 - Create: `src/db/client.ts`
-- Modify: `vitest.integration.config.ts`
-- Create: `vitest.integration.global.ts`
 - Create: `src/business/catalog.ts`
 - Create: `src/business/drizzle-catalog.ts`
 - Create: `src/business/catalog.test.ts`
@@ -433,31 +431,18 @@ Expected: FAIL because `catalog.ts` does not exist.
 Create `src/db/client.ts`:
 
 ```ts
-import { env } from "@/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
 
-export const pool = new Pool({ connectionString: env.DATABASE_URL });
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error("DATABASE_URL is required");
+
+export const pool = new Pool({ connectionString: databaseUrl });
 pool.on("error", (error) => console.error("Idle PostgreSQL client error", error));
 
 export const db = drizzle({ client: pool, schema });
 export type Database = typeof db;
-```
-
-Create `vitest.integration.global.ts`:
-
-```ts
-export async function teardown() {
-  const { pool } = await import("@/db/client");
-  await pool.end();
-}
-```
-
-Add this property under `test` in `vitest.integration.config.ts`:
-
-```ts
-globalSetup: ["./vitest.integration.global.ts"],
 ```
 
 - [ ] **Step 4: Implement the repository with an isolated Drizzle query port**
@@ -567,17 +552,17 @@ export function createDrizzleCatalog(database: Database = db) {
 Create `src/business/catalog.integration.test.ts`:
 
 ```ts
-import { db } from "@/db/client";
+import { db, pool } from "@/db/client";
 import { productPrices, products } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createDrizzleCatalog } from "./drizzle-catalog";
 
-const sku = `IT-CATALOG-${process.pid}`;
-let productId: number;
+const sku = `IT-CATALOG-${randomUUID()}`;
+let productId: number | undefined;
 
 beforeAll(async () => {
-  await db.delete(products).where(eq(products.sku, sku));
   const [product] = await db.insert(products).values({
     sku,
     brand: "Marca de integração",
@@ -596,8 +581,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db.delete(productPrices).where(eq(productPrices.productId, productId));
-  await db.delete(products).where(eq(products.id, productId));
+  if (productId !== undefined) {
+    await db.delete(productPrices).where(eq(productPrices.productId, productId));
+    await db.delete(products).where(eq(products.id, productId));
+  }
+  await pool.end();
 });
 
 it("finds a current offer by normalized viscosity", async () => {
@@ -608,7 +596,7 @@ it("finds a current offer by normalized viscosity", async () => {
 });
 ```
 
-Do not truncate shared LangGraph tables. The integration global teardown closes the pool after all integration files finish.
+Do not truncate shared LangGraph tables. Each integration file closes the pool instance from its own isolated module context.
 
 - [ ] **Step 6: Run both layers**
 
@@ -623,7 +611,7 @@ Expected: unit and PostgreSQL integration tests PASS; build succeeds.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add vitest.integration.config.ts vitest.integration.global.ts src/db/client.ts src/business/catalog.ts src/business/drizzle-catalog.ts src/business/catalog.test.ts src/business/catalog.integration.test.ts
+git add src/db/client.ts src/business/catalog.ts src/business/drizzle-catalog.ts src/business/catalog.test.ts src/business/catalog.integration.test.ts
 git commit -m "feat: add drizzle commercial catalog repository"
 ```
 
