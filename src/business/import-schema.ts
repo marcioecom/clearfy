@@ -29,6 +29,19 @@ export const businessImportSchema = z
     source: text,
     createdBy: text,
   })
-  .strict();
+  .strict()
+  .superRefine(({ products }, context) => {
+    const seenSkus = new Set<string>();
+    products.forEach((product, index) => {
+      if (seenSkus.has(product.sku)) {
+        context.addIssue({
+          code: "custom",
+          message: `Duplicate SKU "${product.sku}"`,
+          path: ["products", index, "sku"],
+        });
+      }
+      seenSkus.add(product.sku);
+    });
+  });
 
 export type BusinessImport = z.infer<typeof businessImportSchema>;

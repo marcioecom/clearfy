@@ -42,3 +42,38 @@ it("rejects unreviewed fields outside the import contract", () => {
     businessImportSchema.parse({ ...validInput, unreviewed: true }),
   ).toThrow();
 });
+
+it("rejects a repeated SKU with the same price at the duplicate path", () => {
+  const result = businessImportSchema.safeParse({
+    ...validInput,
+    products: [validInput.products[0], { ...validInput.products[0] }],
+  });
+
+  expect(result.success).toBe(false);
+  if (result.success) throw new Error("Expected duplicate SKU validation to fail");
+  expect(result.error.issues).toContainEqual(
+    expect.objectContaining({
+      message: 'Duplicate SKU "OLEO-EXEMPLO-5W30-1L"',
+      path: ["products", 1, "sku"],
+    }),
+  );
+});
+
+it("rejects a repeated SKU with a different price at the duplicate path", () => {
+  const result = businessImportSchema.safeParse({
+    ...validInput,
+    products: [
+      validInput.products[0],
+      { ...validInput.products[0], priceCents: 4990 },
+    ],
+  });
+
+  expect(result.success).toBe(false);
+  if (result.success) throw new Error("Expected duplicate SKU validation to fail");
+  expect(result.error.issues).toContainEqual(
+    expect.objectContaining({
+      message: 'Duplicate SKU "OLEO-EXEMPLO-5W30-1L"',
+      path: ["products", 1, "sku"],
+    }),
+  );
+});

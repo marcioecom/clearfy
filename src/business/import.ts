@@ -50,12 +50,17 @@ export async function importBusinessData(
             name: product.name,
             viscosity: product.viscosity ?? null,
             specifications: product.specifications,
-            unit: product.unit,
             active: true,
             updatedAt: new Date(),
           },
         })
-        .returning({ id: products.id });
+        .returning({ id: products.id, unit: products.unit });
+
+      if (saved.unit !== product.unit) {
+        throw new Error(
+          `Cannot change unit for SKU "${product.sku}" from "${saved.unit}" to "${product.unit}"`,
+        );
+      }
 
       // Serialize the current-price decision for this product until commit.
       await tx
