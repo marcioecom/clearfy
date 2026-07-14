@@ -1,14 +1,14 @@
-import { db } from "@/db/client";
+import { db, pool } from "@/db/client";
 import { productPrices, products } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createDrizzleCatalog } from "./drizzle-catalog";
 
-const sku = `IT-CATALOG-${process.pid}`;
-let productId: number;
+const sku = `IT-CATALOG-${randomUUID()}`;
+let productId: number | undefined;
 
 beforeAll(async () => {
-  await db.delete(products).where(eq(products.sku, sku));
   const [product] = await db
     .insert(products)
     .values({
@@ -30,8 +30,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db.delete(productPrices).where(eq(productPrices.productId, productId));
-  await db.delete(products).where(eq(products.id, productId));
+  if (productId !== undefined) {
+    await db.delete(productPrices).where(eq(productPrices.productId, productId));
+    await db.delete(products).where(eq(products.id, productId));
+  }
+  await pool.end();
 });
 
 it("finds a current offer by normalized viscosity", async () => {
