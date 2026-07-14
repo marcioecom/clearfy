@@ -1,6 +1,7 @@
 import { env } from "@/config";
-import { MemorySaver } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
+import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres/store";
 import { createAgent, ReactAgent } from "langchain";
 import { mcpClient } from "./tools/mcp";
 import { searchWeb } from "./tools/search";
@@ -21,10 +22,16 @@ export async function getAgent() {
   if (agent) return agent;
 
   const mcpTools = await mcpClient.getTools();
-  const checkpointer = new MemorySaver();
+
+  const store = PostgresStore.fromConnString(env.DATABASE_URL);
+  await store.setup();
+
+  const checkpointer = PostgresSaver.fromConnString(env.DATABASE_URL);
+  await checkpointer.setup();
 
   agent = createAgent({
     model,
+    store,
     checkpointer,
     tools: [searchWeb, ...mcpTools],
     systemPrompt: SYSTEM_PROMPT,
