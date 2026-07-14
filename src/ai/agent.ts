@@ -20,7 +20,9 @@ export async function getAgent() {
       baseURL: "https://ai-gateway.vercel.sh/v1",
     },
   });
-  const store = PostgresStore.fromConnString(env.DATABASE_URL);
+  const store = PostgresStore.fromConnString(env.DATABASE_URL, {
+    ensureTables: false,
+  });
   const checkpointer = PostgresSaver.fromConnString(env.DATABASE_URL);
   const catalog = createDrizzleCatalog();
   const tools = createBusinessTools(catalog);
