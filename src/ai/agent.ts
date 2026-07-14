@@ -6,6 +6,8 @@ import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres/store";
 import { createOilChangeAgent } from "./create-agent";
 import { createBusinessTools } from "./tools/business";
 
+export { conversationConfig } from "./conversation";
+
 let agent: ReturnType<typeof createOilChangeAgent> | null = null;
 
 export async function getAgent() {
@@ -30,11 +32,4 @@ export async function getAgent() {
     tools,
   });
   return agent;
-}
-
-export function conversationConfig(waId: string) {
-  return {
-    configurable: { thread_id: waId },
-    metadata: { thread_id: waId },
-  };
 }
