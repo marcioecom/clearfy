@@ -5,8 +5,18 @@
   "main": "index.js",
   "scripts": {
     "build": "tsup",
+    "business:import": "tsx --env-file=.env scripts/import-business-data.ts",
+    "db:check": "drizzle-kit check",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:test": "drizzle-kit migrate --config=drizzle.test.config.ts",
     "dev": "tsx watch --env-file=.env src/http/server.ts",
-    "start": "node dist/server.mjs"
+    "eval:deterministic": "vitest run --config vitest.config.ts src/ai/commercial-agent.eval.ts",
+    "eval:langsmith": "tsx --env-file=.env scripts/run-langsmith-evals.ts",
+    "start": "node dist/server.mjs",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "pnpm db:migrate:test && vitest run --config vitest.integration.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
   },
   "keywords": [],
   "author": "",
@@ -16,20 +26,30 @@
     "@fastify/cors": "^11.2.0",
     "@fastify/formbody": "^8.0.2",
     "@fastify/type-provider-zod": "^1.0.0",
+    "@langchain/core": "^1.2.2",
     "@langchain/langgraph": "^1.4.7",
-    "@langchain/mcp-adapters": "^1.1.3",
+    "@langchain/langgraph-checkpoint": "^1.1.3",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.4",
     "@langchain/openai": "^1.5.3",
-    "@tavily/core": "^0.7.6",
     "ai": "^7.0.16",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
     "fastify": "^5.10.0",
     "langchain": "^1.5.2",
+    "langsmith": "^0.8.2",
+    "pg": "^8.22.0",
     "twilio": "^6.0.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
+    "@types/pg": "^8.20.0",
+    "agentevals": "^0.0.7",
+    "drizzle-kit": "^0.31.10",
+    "openevals": "^0.2.0",
     "tsup": "^8.5.1",
     "tsx": "^4.22.5",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
   }
 }

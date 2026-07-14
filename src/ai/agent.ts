@@ -1,33 +1,37 @@
 import { env } from "@/config";
-import { MemorySaver } from "@langchain/langgraph";
+import { createDrizzleCatalog } from "@/business/drizzle-catalog";
 import { ChatOpenAI } from "@langchain/openai";
-import { createAgent, ReactAgent } from "langchain";
-import { mcpClient } from "./tools/mcp";
-import { searchWeb } from "./tools/search";
+import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres/store";
+import { createOilChangeAgent } from "./create-agent";
+import { createBusinessTools } from "./tools/business";
 
-const model = new ChatOpenAI({
-  apiKey: env.AI_GATEWAY_API_KEY,
-  modelName: "openai/gpt-4o-mini",
-  configuration: {
-    baseURL: "https://ai-gateway.vercel.sh/v1",
-  },
-});
+export { conversationConfig } from "./conversation";
 
-const SYSTEM_PROMPT = `Você é um assistente util que atende pelo Whatsapp`;
-
-let agent: ReactAgent | null = null;
+let agent: ReturnType<typeof createOilChangeAgent> | null = null;
 
 export async function getAgent() {
   if (agent) return agent;
 
-  const mcpTools = await mcpClient.getTools();
-  const checkpointer = new MemorySaver();
+  const model = new ChatOpenAI({
+    apiKey: env.AI_GATEWAY_API_KEY,
+    modelName: "openai/gpt-4o-mini",
+    configuration: {
+      baseURL: "https://ai-gateway.vercel.sh/v1",
+    },
+  });
+  const store = PostgresStore.fromConnString(env.DATABASE_URL, {
+    ensureTables: false,
+  });
+  const checkpointer = PostgresSaver.fromConnString(env.DATABASE_URL);
+  const catalog = createDrizzleCatalog();
+  const tools = createBusinessTools(catalog);
 
-  agent = createAgent({
+  agent = createOilChangeAgent({
     model,
+    store,
     checkpointer,
-    tools: [searchWeb, ...mcpTools],
-    systemPrompt: SYSTEM_PROMPT,
+    tools,
   });
   return agent;
 }
