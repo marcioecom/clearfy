@@ -73,7 +73,6 @@ These subjects have separate plans after this delivery is validated:
 - Modify: `.env.example`
 - Create: `vitest.config.ts`
 - Create: `vitest.integration.config.ts`
-- Create: `vitest.integration.teardown.ts`
 - Create: `drizzle.config.ts`
 - Create: `drizzle.test.config.ts`
 
@@ -116,12 +115,12 @@ Merge these entries into `package.json#scripts`:
 Create `vitest.config.ts`:
 
 ```ts
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: { "@": path.resolve(process.cwd(), "src") },
   },
   test: {
     environment: "node",
@@ -136,7 +135,7 @@ Create `vitest.integration.config.ts`:
 
 ```ts
 import "dotenv/config";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { configDefaults, defineConfig } from "vitest/config";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
@@ -149,7 +148,7 @@ process.env.DATABASE_URL = testDatabaseUrl;
 
 export default defineConfig({
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: { "@": path.resolve(process.cwd(), "src") },
   },
   test: {
     environment: "node",
@@ -158,18 +157,8 @@ export default defineConfig({
     include: ["**/*.integration.test.ts"],
     exclude: configDefaults.exclude,
     fileParallelism: false,
-    globalTeardown: ["./vitest.integration.teardown.ts"],
   },
 });
-```
-
-Create `vitest.integration.teardown.ts`:
-
-```ts
-export default async function teardown() {
-  const { pool } = await import("./src/db/client");
-  await pool.end();
-}
 ```
 
 - [ ] **Step 4: Configure drizzle-kit**
@@ -245,7 +234,7 @@ Expected: Vitest exits successfully and tsup builds `dist/server.mjs`.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add package.json pnpm-lock.yaml .env.example vitest.config.ts vitest.integration.config.ts vitest.integration.teardown.ts drizzle.config.ts drizzle.test.config.ts
+git add package.json pnpm-lock.yaml .env.example vitest.config.ts vitest.integration.config.ts drizzle.config.ts drizzle.test.config.ts
 git commit -m "test: add drizzle and agent evaluation foundation"
 ```
 
@@ -395,6 +384,8 @@ git commit -m "feat: add drizzle commercial catalog schema"
 
 **Files:**
 - Create: `src/db/client.ts`
+- Modify: `vitest.integration.config.ts`
+- Create: `vitest.integration.global.ts`
 - Create: `src/business/catalog.ts`
 - Create: `src/business/drizzle-catalog.ts`
 - Create: `src/business/catalog.test.ts`
@@ -452,6 +443,21 @@ pool.on("error", (error) => console.error("Idle PostgreSQL client error", error)
 
 export const db = drizzle({ client: pool, schema });
 export type Database = typeof db;
+```
+
+Create `vitest.integration.global.ts`:
+
+```ts
+export async function teardown() {
+  const { pool } = await import("@/db/client");
+  await pool.end();
+}
+```
+
+Add this property under `test` in `vitest.integration.config.ts`:
+
+```ts
+globalSetup: ["./vitest.integration.global.ts"],
 ```
 
 - [ ] **Step 4: Implement the repository with an isolated Drizzle query port**
@@ -617,7 +623,7 @@ Expected: unit and PostgreSQL integration tests PASS; build succeeds.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/db/client.ts src/business/catalog.ts src/business/drizzle-catalog.ts src/business/catalog.test.ts src/business/catalog.integration.test.ts
+git add vitest.integration.config.ts vitest.integration.global.ts src/db/client.ts src/business/catalog.ts src/business/drizzle-catalog.ts src/business/catalog.test.ts src/business/catalog.integration.test.ts
 git commit -m "feat: add drizzle commercial catalog repository"
 ```
 
