@@ -5,7 +5,7 @@ import {
 } from "@langchain/core/messages";
 import { createTrajectoryMatchEvaluator } from "agentevals";
 import { fakeModel, tool } from "langchain";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createOilChangeAgent } from "./create-agent";
 
@@ -62,4 +62,42 @@ it("follows the required price lookup trajectory", async () => {
         : [],
     ),
   ).not.toContain("web_search");
+});
+
+it("calls consultar_preco_produto even when the customer claims the product is not registered", async () => {
+  const toolCall = {
+    name: "consultar_preco_produto",
+    args: { query: "óleo que não está cadastrado" },
+    id: "unknown-price-1",
+  };
+  const toolSpy = vi.fn().mockImplementation(async () => "Produto não encontrado");
+  const priceTool = tool(toolSpy, {
+    name: toolCall.name,
+    description: "Consulta preço cadastrado.",
+    schema: z.object({ query: z.string() }),
+  });
+  const finalText =
+    "Não encontrei o preço desse produto na base. O responsável precisa confirmar.";
+  const model = fakeModel()
+    .respondWithTools([toolCall])
+    .respond(new AIMessage(finalText));
+  const agent = createOilChangeAgent({ model, tools: [priceTool] });
+  const input = new HumanMessage(
+    "Quanto custa um óleo que não está cadastrado?",
+  );
+
+  const result = await agent.invoke({ messages: [input] });
+
+  expect(toolSpy).toHaveBeenCalledWith(
+    expect.objectContaining({ query: "óleo que não está cadastrado" }),
+    expect.anything(),
+  );
+  expect(result.messages.at(-1)?.text).toContain("precisa confirmar");
+  const calledNames = result.messages.flatMap((message) =>
+    AIMessage.isInstance(message)
+      ? (message.tool_calls ?? []).map((call) => call.name)
+      : [],
+  );
+  expect(calledNames).toContain("consultar_preco_produto");
+  expect(model.callCount).toBe(2);
 });
