@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { configDefaults, defineConfig } from "vitest/config";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
@@ -12,7 +12,7 @@ process.env.DATABASE_URL = testDatabaseUrl;
 
 export default defineConfig({
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: { "@": path.resolve(process.cwd(), "src") },
   },
   test: {
     environment: "node",
@@ -21,6 +21,5 @@ export default defineConfig({
     include: ["**/*.integration.test.ts"],
     exclude: configDefaults.exclude,
     fileParallelism: false,
-    globalTeardown: ["./vitest.integration.teardown.ts"],
   },
 });
