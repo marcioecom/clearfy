@@ -9,6 +9,7 @@ export default defineConfig({
     environment: "node",
     clearMocks: true,
     passWithNoTests: true,
+    include: [...configDefaults.include, "**/*.eval.ts"],
     exclude: [...configDefaults.exclude, "**/*.integration.test.ts"],
   },
 });
