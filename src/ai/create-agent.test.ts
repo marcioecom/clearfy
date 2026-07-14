@@ -1,4 +1,8 @@
-import { AIMessage, HumanMessage } from "@langchain/core/messages";
+import {
+  AIMessage,
+  HumanMessage,
+  ToolMessage,
+} from "@langchain/core/messages";
 import { fakeModel, tool } from "langchain";
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -36,16 +40,10 @@ it("executes the selected price tool and returns the final answer", async () => 
 
 it("returns a final answer after a supplied tool fails", async () => {
   const failingLookup = vi.fn().mockRejectedValue(new Error("catalog offline"));
-  const omittedLookup = vi.fn().mockResolvedValue("must not run");
   const failingTool = tool(failingLookup, {
     name: "consultar_preco_produto",
     description: "Consulta preço cadastrado.",
     schema: z.object({ query: z.string() }),
-  });
-  tool(omittedLookup, {
-    name: "ferramenta_nao_fornecida",
-    description: "Não fornecida ao agente.",
-    schema: z.object({}),
   });
   const model = fakeModel()
     .respondWithTools([
@@ -65,7 +63,47 @@ it("returns a final answer after a supplied tool fails", async () => {
   });
 
   expect(failingLookup).toHaveBeenCalledOnce();
+  expect(result.messages.at(-1)?.text).toContain("precisa confirmar");
+  expect(model.callCount).toBe(2);
+});
+
+it("reports an unknown tool without executing its omitted handler", async () => {
+  const suppliedLookup = vi.fn().mockResolvedValue("supplied tool result");
+  const omittedLookup = vi.fn().mockResolvedValue("must not run");
+  const suppliedTool = tool(suppliedLookup, {
+    name: "consultar_preco_produto",
+    description: "Consulta preço cadastrado.",
+    schema: z.object({ query: z.string() }),
+  });
+  tool(omittedLookup, {
+    name: "ferramenta_nao_fornecida",
+    description: "Não fornecida ao agente.",
+    schema: z.object({}),
+  });
+  const model = fakeModel()
+    .respondWithTools([
+      {
+        name: "ferramenta_nao_fornecida",
+        args: {},
+        id: "unknown-tool-1",
+      },
+    ])
+    .respond((messages) => {
+      const unknownToolMessage = messages.at(-1);
+      expect(unknownToolMessage).toBeInstanceOf(ToolMessage);
+      expect(unknownToolMessage?.text).toContain("ferramenta_nao_fornecida");
+      return new AIMessage(
+        "Essa ferramenta não está disponível; o responsável precisa confirmar.",
+      );
+    });
+  const agent = createOilChangeAgent({ model, tools: [suppliedTool] });
+
+  const result = await agent.invoke({
+    messages: [new HumanMessage("Use a ferramenta não fornecida.")],
+  });
+
   expect(omittedLookup).not.toHaveBeenCalled();
+  expect(suppliedLookup).not.toHaveBeenCalled();
   expect(result.messages.at(-1)?.text).toContain("precisa confirmar");
   expect(model.callCount).toBe(2);
 });
