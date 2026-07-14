@@ -1,4 +1,4 @@
-import { getAgent } from "@/ai/agent";
+import { conversationConfig, getAgent } from "@/ai/agent";
 import { transcribeAudio } from "@/helpers/transcribe";
 import { messager } from "@/lib/twilio";
 import { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
@@ -43,7 +43,7 @@ export const webhook: FastifyPluginAsyncZod = async (app) => {
         {
           messages: [new HumanMessage(userMessage)],
         },
-        { configurable: { thread_id: WaId } },
+        conversationConfig(WaId),
       );
       const answer = res.messages.at(-1)?.content;
 
