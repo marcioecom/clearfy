@@ -48,7 +48,8 @@ These subjects have separate plans after this delivery is validated:
 - `src/db/schema/commercial.ts`: business profile, products, and price history.
 - `src/db/schema/relations.ts`: Drizzle relational-query metadata.
 - `src/db/schema/index.ts`: complete schema export for drizzle-kit and runtime.
-- `src/business/catalog.ts`: commercial read interface and Drizzle implementation.
+- `src/business/catalog.ts`: database-agnostic commercial read interface and normalization.
+- `src/business/drizzle-catalog.ts`: Drizzle query adapter.
 - `src/business/import-schema.ts`: strict JSON input contract.
 - `src/business/import.ts`: transactional profile, product, and price import service.
 - `scripts/import-business-data.ts`: CLI adapter for the import service.
@@ -390,13 +391,15 @@ git commit -m "feat: add drizzle commercial catalog schema"
 **Files:**
 - Create: `src/db/client.ts`
 - Create: `src/business/catalog.ts`
+- Create: `src/business/drizzle-catalog.ts`
 - Create: `src/business/catalog.test.ts`
 - Create: `src/business/catalog.integration.test.ts`
 
 **Interfaces:**
 - Produces `pool` and `db` from `src/db/client.ts`.
 - Produces `CommercialCatalogReader`.
-- Produces `DrizzleCommercialCatalog.getProfile()` and `.findCurrentOffers(query)`.
+- Produces `CommercialCatalog.getProfile()` and `.findCurrentOffers(query)` without importing the database.
+- Produces `createDrizzleCatalog(database?)` as the production adapter.
 
 - [ ] **Step 1: Write repository unit tests against a query-port fake**
 
@@ -404,12 +407,12 @@ Create `src/business/catalog.test.ts`:
 
 ```ts
 import { describe, expect, it, vi } from "vitest";
-import { DrizzleCommercialCatalog } from "./catalog";
+import { CommercialCatalog } from "./catalog";
 
-describe("DrizzleCommercialCatalog", () => {
+describe("CommercialCatalog", () => {
   it("normalizes the customer query before delegating to the query port", async () => {
     const findOffers = vi.fn().mockResolvedValue([]);
-    const catalog = new DrizzleCommercialCatalog({
+    const catalog = new CommercialCatalog({
       findProfile: vi.fn(),
       findOffers,
     });
@@ -451,10 +454,6 @@ export type Database = typeof db;
 Create `src/business/catalog.ts`:
 
 ```ts
-import { db, type Database } from "@/db/client";
-import { businessProfile, productPrices, products } from "@/db/schema";
-import { and, eq, ilike, isNull, or, sql } from "drizzle-orm";
-
 export interface ProfileView {
   businessName: string;
   address: string | null;
@@ -479,18 +478,43 @@ export interface CommercialCatalogReader {
   findCurrentOffers(query: string): Promise<OfferView[]>;
 }
 
-interface CatalogQueryPort {
+export interface CatalogQueryPort {
   findProfile(): Promise<ProfileView | null>;
   findOffers(normalizedQuery: string): Promise<OfferView[]>;
 }
 
-function createDrizzleQueryPort(database: Database): CatalogQueryPort {
+export class CommercialCatalog implements CommercialCatalogReader {
+  constructor(private readonly queries: CatalogQueryPort) {}
+
+  getProfile() {
+    return this.queries.findProfile();
+  }
+
+  findCurrentOffers(query: string) {
+    return this.queries.findOffers(query.trim().toLocaleUpperCase("pt-BR"));
+  }
+}
+```
+
+Create `src/business/drizzle-catalog.ts`:
+
+```ts
+import { db, type Database } from "@/db/client";
+import { businessProfile, productPrices, products } from "@/db/schema";
+import { and, eq, ilike, isNull, or, sql } from "drizzle-orm";
+import {
+  CommercialCatalog,
+  type CatalogQueryPort,
+  type OfferView,
+} from "./catalog";
+
+function createQueryPort(database: Database): CatalogQueryPort {
   return {
     async findProfile() {
       const [profile] = await database.select().from(businessProfile).limit(1);
       return profile ?? null;
     },
-    async findOffers(query) {
+    async findOffers(query): Promise<OfferView[]> {
       const pattern = `%${query}%`;
       return database
         .select({
@@ -522,16 +546,8 @@ function createDrizzleQueryPort(database: Database): CatalogQueryPort {
   };
 }
 
-export class DrizzleCommercialCatalog implements CommercialCatalogReader {
-  constructor(private readonly queries: CatalogQueryPort = createDrizzleQueryPort(db)) {}
-
-  getProfile() {
-    return this.queries.findProfile();
-  }
-
-  findCurrentOffers(query: string) {
-    return this.queries.findOffers(query.trim().toLocaleUpperCase("pt-BR"));
-  }
+export function createDrizzleCatalog(database: Database = db) {
+  return new CommercialCatalog(createQueryPort(database));
 }
 ```
 
@@ -544,7 +560,7 @@ import { db } from "@/db/client";
 import { productPrices, products } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { DrizzleCommercialCatalog } from "./catalog";
+import { createDrizzleCatalog } from "./drizzle-catalog";
 
 const sku = `IT-CATALOG-${process.pid}`;
 let productId: number;
@@ -574,7 +590,7 @@ afterAll(async () => {
 });
 
 it("finds a current offer by normalized viscosity", async () => {
-  const offers = await new DrizzleCommercialCatalog().findCurrentOffers("5w30");
+  const offers = await createDrizzleCatalog().findCurrentOffers("5w30");
   expect(offers).toEqual(expect.arrayContaining([
     expect.objectContaining({ sku, priceCents: 7500, unit: "litro" }),
   ]));
@@ -596,7 +612,7 @@ Expected: unit and PostgreSQL integration tests PASS; build succeeds.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/db/client.ts src/business/catalog.ts src/business/catalog.test.ts src/business/catalog.integration.test.ts
+git add src/db/client.ts src/business/catalog.ts src/business/drizzle-catalog.ts src/business/catalog.test.ts src/business/catalog.integration.test.ts
 git commit -m "feat: add drizzle commercial catalog repository"
 ```
 
